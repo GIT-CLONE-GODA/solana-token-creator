@@ -1,0 +1,164 @@
+name: Create Solana Token
+
+on:
+  repository_dispatch:
+    types: [create_token]
+
+jobs:
+  create-token:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.11'
+
+    - name: Set up Rust
+      uses: actions-rs/toolchain@v1
+      with:
+        toolchain: stable
+        override: true
+        components: rustfmt, clippy
+
+    - name: Install Solana CLI
+      run: |
+        sh -c "$(curl -sSfL https://release.solana.com/v1.17.0/install)"
+        echo "$HOME/.local/share/solana/install/active_release/bin" >> $GITHUB_PATH
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        solana --version
+
+    - name: Configure Solana CLI
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        if [ "${{ github.event.client_payload.network }}" = "mainnet" ]; then
+          solana config set --url https://api.mainnet-beta.solana.com
+        else
+          solana config set --url https://api.devnet.solana.com
+        fi
+        solana config get
+
+    - name: Install Python dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+
+    - name: Build Rust programs
+      run: |
+        cd rust-programs
+        cargo build --release
+
+    - name: Create wallet keypair
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        solana-keygen new --no-bip39-passphrase --silent --outfile ./wallet.json
+        echo "Wallet created: $(solana-keygen pubkey ./wallet.json)"
+
+    - name: Request airdrop (devnet only)
+      if: github.event.client_payload.network == 'devnet'
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        WALLET_PUBKEY=$(solana-keygen pubkey ./wallet.json)
+        echo "Requesting airdrop for wallet: $WALLET_PUBKEY"
+        solana airdrop 2 $WALLET_PUBKEY --keypair ./wallet.json
+        sleep 5
+        solana balance $WALLET_PUBKEY
+
+    - name: Create token with Python script
+      id: create_token
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        python scripts/create_token.py \
+          --wallet-path ./wallet.json \
+          --name "${{ github.event.client_payload.tokenName }}" \
+          --symbol "${{ github.event.client_payload.tokenSymbol }}" \
+          --description "${{ github.event.client_payload.tokenDescription }}" \
+          --supply ${{ github.event.client_payload.initialSupply }} \
+          --decimals ${{ github.event.client_payload.decimals }} \
+          --image-url "${{ github.event.client_payload.imageUrl }}" \
+          --network ${{ github.event.client_payload.network }} \
+          ${{ github.event.client_payload.revokeMintAuthority == 'true' && '--revoke-mint-authority' || '' }} \
+          ${{ github.event.client_payload.revokeFreezeAuthority == 'true' && '--revoke-freeze-authority' || '' }}
+
+    - name: Run Rust token operations
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        cd rust-programs
+        cargo run --release -- \
+          --wallet-path ../wallet.json \
+          --mint-address "$(cat ../token_mint.txt)" \
+          --operation verify
+
+    - name: Generate token report
+      run: |
+        export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
+        python scripts/generate_report.py \
+          --mint-address "$(cat token_mint.txt)" \
+          --network ${{ github.event.client_payload.network }} \
+          --wallet-address "${{ github.event.client_payload.walletAddress }}"
+
+    - name: Upload token creation artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: token-creation-artifacts-${{ github.run_number }}
+        path: |
+          token_mint.txt
+          token_metadata.json
+          creation_log.txt
+          token_report.html
+          wallet.json
+        retention-days: 30
+
+    - name: Commit results to repository (optional)
+      if: github.event.client_payload.commitResults == 'true'
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        
+        # Create results directory
+        mkdir -p results/$(date +%Y-%m-%d)
+        
+        # Copy artifacts to results directory
+        cp token_mint.txt results/$(date +%Y-%m-%d)/
+        cp token_metadata.json results/$(date +%Y-%m-%d)/
+        cp creation_log.txt results/$(date +%Y-%m-%d)/
+        cp token_report.html results/$(date +%Y-%m-%d)/
+        
+        # Add and commit
+        git add results/
+        git commit -m "Add token creation results for $(date +%Y-%m-%d)"
+        git push
+
+    - name: Create workflow summary
+      run: |
+        echo "## 🪙 Token Creation Summary" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Token Name:** ${{ github.event.client_payload.tokenName }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Token Symbol:** ${{ github.event.client_payload.tokenSymbol }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Network:** ${{ github.event.client_payload.network }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Initial Supply:** ${{ github.event.client_payload.initialSupply }}" >> $GITHUB_STEP_SUMMARY
+        echo "**Decimals:** ${{ github.event.client_payload.decimals }}" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        if [ -f token_mint.txt ]; then
+          echo "**Token Mint Address:** \`$(cat token_mint.txt)\`" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.client_payload.network }}" = "mainnet" ]; then
+            echo "**Explorer Link:** https://explorer.solana.com/address/$(cat token_mint.txt)" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "**Explorer Link:** https://explorer.solana.com/address/$(cat token_mint.txt)?cluster=devnet" >> $GITHUB_STEP_SUMMARY
+          fi
+        fi
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "**Artifacts:** Available for download from this workflow run" >> $GITHUB_STEP_SUMMARY
+
+    - name: Notify completion
+      if: always()
+      run: |
+        if [ "${{ job.status }}" = "success" ]; then
+          echo "✅ Token creation completed successfully!"
+        else
+          echo "❌ Token creation failed. Check the logs for details."
+        fi

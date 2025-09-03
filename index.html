@@ -1,0 +1,341 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Solana Token Creator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #000000 0%, #000000 50%, #000000 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            color: #e0e0e0;
+        }
+
+        .container {
+            background: rgba(30, 30, 50, 0.5);
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 600px;
+            width: 100%;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(10px);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #ffffff;
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .header p {
+            color: #cbd5e0;
+            font-size: 1.1rem;
+        }
+
+        .wallet-section {
+            margin-bottom: 30px;
+            padding: 20px;
+            background: rgba(45, 55, 72, 0.6);
+            border-radius: 10px;
+            text-align: center;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .wallet-status {
+            margin-bottom: 15px;
+            font-weight: 600;
+        }
+
+        .connected {
+            color: #28a745;
+        }
+
+        .disconnected {
+            color: #dc3545;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #cbd5e0;
+        }
+
+        .form-group input,
+        .form-group textarea,
+        .form-group select {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            font-size: 1rem;
+            transition: border-color 0.3s;
+            background: rgba(45, 55, 72, 0.8);
+            color: #e0e0e0;
+        }
+
+        .form-group input:focus,
+        .form-group textarea:focus,
+        .form-group select:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2);
+            background: rgba(45, 55, 72, 0.9);
+        }
+
+        .form-group input::placeholder,
+        .form-group textarea::placeholder {
+            color: #a0aec0;
+        }
+
+        .form-group textarea {
+            resize: vertical;
+            min-height: 80px;
+        }
+
+        .network-selector {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .network-option {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #4a5568;
+            border-radius: 8px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(45, 55, 72, 0.6);
+            color: #e0e0e0;
+        }
+
+        .network-option.selected {
+            border-color: #667eea;
+            background: #667eea;
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .network-option:hover {
+             border-color: #667eea;
+             background: rgba(102, 126, 234, 0.1);
+         }
+
+         .authority-options {
+             display: flex;
+             flex-direction: column;
+             gap: 12px;
+             margin-top: 8px;
+         }
+
+         .authority-option {
+             display: flex;
+             align-items: center;
+             gap: 10px;
+             padding: 12px;
+             background: rgba(45, 55, 72, 0.4);
+             border-radius: 8px;
+             border: 1px solid rgba(255, 255, 255, 0.1);
+             transition: all 0.3s ease;
+         }
+
+         .authority-option:hover {
+             background: rgba(45, 55, 72, 0.6);
+             border-color: rgba(102, 126, 234, 0.3);
+         }
+
+         .authority-option input[type="checkbox"] {
+             width: auto;
+             margin: 0;
+             accent-color: #667eea;
+         }
+
+         .authority-option label {
+             margin: 0;
+             cursor: pointer;
+             font-weight: 500;
+             color: #cbd5e0;
+             font-size: 0.95rem;
+         }
+
+        .status-section {
+            margin-top: 30px;
+            padding: 20px;
+            background: rgba(45, 55, 72, 0.6);
+            border-radius: 10px;
+            display: none;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .status-section.show {
+            display: block;
+        }
+
+        .loading {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-right: 10px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            color: #fc8181;
+            background: rgba(229, 62, 62, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            border-left: 3px solid #e53e3e;
+        }
+
+        .success {
+            color: #68d391;
+            background: rgba(56, 161, 105, 0.1);
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+            border-left: 3px solid #38a169;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🪙 Solana Token Creator</h1>
+            <p>Create your own Solana tokens on devnet or mainnet</p>
+        </div>
+
+        <div class="wallet-section">
+            <div class="wallet-status" id="walletStatus">
+                <span class="disconnected">Wallet not connected</span>
+            </div>
+            <button class="btn" id="connectWallet">Connect Phantom Wallet</button>
+        </div>
+
+        <form id="tokenForm" style="display: none;">
+            <div class="form-group">
+                <label>Network</label>
+                <div class="network-selector">
+                    <div class="network-option selected" data-network="devnet">
+                        <strong>Devnet</strong><br>
+                        <small>For testing</small>
+                    </div>
+                    <div class="network-option" data-network="mainnet">
+                        <strong>Mainnet</strong><br>
+                        <small>Live network</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label for="tokenName">Token Name *</label>
+                <input type="text" id="tokenName" name="tokenName" required placeholder="e.g., My Awesome Token">
+            </div>
+
+            <div class="form-group">
+                <label for="tokenSymbol">Token Symbol *</label>
+                <input type="text" id="tokenSymbol" name="tokenSymbol" required placeholder="e.g., MAT" maxlength="10">
+            </div>
+
+            <div class="form-group">
+                <label for="tokenDescription">Description</label>
+                <textarea id="tokenDescription" name="tokenDescription" placeholder="Describe your token..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label for="initialSupply">Initial Supply *</label>
+                <input type="number" id="initialSupply" name="initialSupply" required placeholder="1000000" min="1">
+            </div>
+
+            <div class="form-group">
+                <label for="decimals">Decimals *</label>
+                <input type="number" id="decimals" name="decimals" required value="9" min="0" max="9">
+            </div>
+
+            <div class="form-group">
+                <label for="imageUrl">Token Image URL (optional)</label>
+                <input type="url" id="imageUrl" name="imageUrl" placeholder="https://example.com/token-image.png">
+            </div>
+
+            <div class="form-group">
+                <label>Authority Settings</label>
+                <div class="authority-options">
+                    <div class="authority-option">
+                        <input type="checkbox" id="revokeMintAuthority" name="revokeMintAuthority">
+                        <label for="revokeMintAuthority">Revoke Mint Authority (Cannot mint more tokens)</label>
+                    </div>
+                    <div class="authority-option">
+                        <input type="checkbox" id="revokeFreezeAuthority" name="revokeFreezeAuthority">
+                        <label for="revokeFreezeAuthority">Revoke Freeze Authority (Cannot freeze accounts)</label>
+                    </div>
+                </div>
+            </div>
+
+            <button type="submit" class="btn" id="createTokenBtn">Create Token</button>
+        </form>
+
+        <div class="status-section" id="statusSection">
+            <h3>Token Creation Status</h3>
+            <div id="statusContent"></div>
+        </div>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>

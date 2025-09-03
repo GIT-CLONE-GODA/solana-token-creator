@@ -1,0 +1,64 @@
+{
+  "name": "solana-token-creator",
+  "version": "1.0.0",
+  "description": "A comprehensive Solana token creation platform with GitHub Pages frontend and GitHub Actions backend",
+  "main": "app.js",
+  "scripts": {
+    "start": "python -m http.server 8000",
+    "dev": "python -m http.server 8000",
+    "build": "echo 'Static site - no build required'",
+    "test": "echo 'No tests specified'",
+    "lint": "echo 'Linting frontend code'",
+    "deploy": "echo 'Deploy to GitHub Pages'",
+    "setup-python": "pip install -r requirements.txt",
+    "setup-rust": "cd rust-programs && cargo build --release",
+    "setup": "npm run setup-python && npm run setup-rust",
+    "create-token-local": "python scripts/create_token.py",
+    "generate-report": "python scripts/generate_report.py"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/solana-token-creator.git"
+  },
+  "keywords": [
+    "solana",
+    "token",
+    "spl-token",
+    "blockchain",
+    "cryptocurrency",
+    "github-pages",
+    "github-actions",
+    "phantom-wallet",
+    "web3",
+    "defi"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/your-username/solana-token-creator/issues"
+  },
+  "homepage": "https://your-username.github.io/solana-token-creator",
+  "devDependencies": {
+    "live-server": "^1.2.2",
+    "prettier": "^3.0.0",
+    "eslint": "^8.50.0"
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ],
+  "files": [
+    "index.html",
+    "app.js",
+    "scripts/",
+    "rust-programs/",
+    ".github/",
+    "README.md",
+    "requirements.txt"
+  ]
+}
