@@ -20,7 +20,7 @@ This guide provides step-by-step instructions for securely deploying the Solana 
 1. Go to your repository → Settings → Secrets and variables → Actions
 2. Click "New repository secret"
 3. Add the following secrets:
-   - **Name:** `GITHUB_TOKEN`
+   - **Name:** `PERSONAL_ACCESS_TOKEN` (Note: Do NOT use `GITHUB_` prefix as it's reserved by GitHub)
    - **Value:** Your personal access token from step 1
 
 ## 📝 Configuration Steps
@@ -97,7 +97,7 @@ python -m http.server 8000
 
 ### 1. Pre-deployment Checklist
 
-- [ ] GitHub token stored as repository secret
+- [ ] Personal access token stored as repository secret (with name NOT starting with `GITHUB_`)
 - [ ] Frontend configuration updated
 - [ ] No sensitive data in code
 - [ ] GitHub Actions enabled

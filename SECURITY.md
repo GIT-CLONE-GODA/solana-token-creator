@@ -5,12 +5,12 @@
 ### Pre-Deployment Security ✅
 
 - [ ] **No hardcoded tokens in source code**
-  - Check `app.js` for any `GITHUB_TOKEN` references
+  - Check `app.js` for any token references
   - Verify no private keys in any files
   - Confirm no wallet addresses hardcoded
 
 - [ ] **Repository secrets configured**
-  - `GITHUB_TOKEN` stored as repository secret
+  - `PERSONAL_ACCESS_TOKEN` stored as repository secret (Note: Do NOT use `GITHUB_` prefix as it's reserved by GitHub)
   - No sensitive data in environment variables section
   - Secrets have appropriate access levels
 
@@ -105,17 +105,17 @@
 const GITHUB_OWNER = CONFIG.GITHUB_OWNER;
 
 // ❌ Bad: Hardcoded values
-const GITHUB_TOKEN = 'ghp_xxxxxxxxxxxx';
+const API_TOKEN = 'ghp_xxxxxxxxxxxx';
 ```
 
 ### Environment Security
 
 ```bash
 # ✅ Good: Using environment variables
-export GITHUB_TOKEN="$GITHUB_TOKEN"
+export PERSONAL_ACCESS_TOKEN="$PERSONAL_ACCESS_TOKEN"
 
 # ❌ Bad: Hardcoded in scripts
-export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
+export API_TOKEN="ghp_xxxxxxxxxxxx"
 ```
 
 ### Workflow Security
@@ -123,11 +123,11 @@ export GITHUB_TOKEN="ghp_xxxxxxxxxxxx"
 ```yaml
 # ✅ Good: Using secrets
 env:
-  GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
 # ❌ Bad: Hardcoded tokens
 env:
-  GITHUB_TOKEN: ghp_xxxxxxxxxxxx
+  TOKEN: ghp_xxxxxxxxxxxx
 ```
 
 ## Incident Response
