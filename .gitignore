@@ -35,6 +35,18 @@ Cargo.lock
 test-ledger/
 validator-keypair.json
 faucet-keypair.json
+wallet.json
+
+# Security - Never commit these files
+config.js
+.env
+.env.local
+.env.production
+*.key
+*.pem
+*-keypair.json
+secrets/
+private/
 
 # Logs
 logs/

@@ -144,8 +144,8 @@ class SolanaTokenCreator {
 
     async triggerTokenCreation(tokenData) {
         // GitHub repository information - UPDATE THESE WITH YOUR ACTUAL VALUES
-        const GITHUB_OWNER = 'YOUR_GITHUB_USERNAME'; // Replace with your GitHub username
-        const GITHUB_REPO = 'YOUR_REPOSITORY_NAME'; // Replace with your repository name
+        const GITHUB_OWNER = CONFIG.GITHUB_OWNER;
+        const GITHUB_REPO = CONFIG.GITHUB_REPO;
         // SECURITY NOTE: GitHub token is handled server-side via repository secrets
         // Never include tokens in frontend code!
 
