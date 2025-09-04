@@ -345,7 +345,15 @@
         </div>
     </div>
 
-    <script src="config.js"></script>
+    <script>
+        // Try to load config.js, but don't fail if it's not available (GitHub Pages)
+        const script = document.createElement('script');
+        script.src = 'config.js';
+        script.onerror = function() {
+            console.log('config.js not found - using default values');
+        };
+        document.head.appendChild(script);
+    </script>
     <script src="app.js"></script>
 </body>
 </html>
