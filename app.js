@@ -144,8 +144,19 @@ class SolanaTokenCreator {
 
     async triggerTokenCreation(tokenData) {
         // GitHub repository information - UPDATE THESE WITH YOUR ACTUAL VALUES
-        const GITHUB_OWNER = CONFIG.GITHUB_OWNER;
-        const GITHUB_REPO = CONFIG.GITHUB_REPO;
+        let GITHUB_OWNER, GITHUB_REPO;
+        
+        // Check if CONFIG is defined (local development) or use default values (GitHub Pages)
+        if (typeof CONFIG !== 'undefined') {
+            GITHUB_OWNER = CONFIG.GITHUB_OWNER;
+            GITHUB_REPO = CONFIG.GITHUB_REPO;
+        } else {
+            // Default values when config.js is not available (e.g., on GitHub Pages)
+            GITHUB_OWNER = 'GIT-CLONE-GODA';
+            GITHUB_REPO = 'solana-token-creator';
+            this.showWarning('Running in demo mode: config.js not found. Using default repository values.');
+        }
+        
         // SECURITY NOTE: GitHub token is handled server-side via repository secrets
         // Never include tokens in frontend code!
 
@@ -266,6 +277,14 @@ class SolanaTokenCreator {
         const statusContent = document.getElementById('statusContent');
         
         statusContent.innerHTML = `<div class="error">${message}</div>`;
+        statusSection.classList.add('show');
+    }
+    
+    showWarning(message) {
+        const statusSection = document.getElementById('statusSection');
+        const statusContent = document.getElementById('statusContent');
+        
+        statusContent.innerHTML = `<div class="warning">${message}</div>`;
         statusSection.classList.add('show');
     }
 }

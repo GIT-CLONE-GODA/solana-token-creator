@@ -50,7 +50,12 @@ A comprehensive platform for creating Solana SPL tokens with a GitHub Pages fron
    - Go to Settings → Secrets and variables → Actions
    - Add any required secrets for mainnet operations
 
-4. **Access the Application**
+4. **Configuration Setup**
+   - For local development: Copy `config.example.js` to `config.js` and update with your details
+   - For GitHub Pages: The app will use default values since `config.js` is in `.gitignore`
+   - Note: You'll see a warning when running on GitHub Pages without a custom config
+
+5. **Access the Application**
    - Visit `https://your-username.github.io/solana-token-creator`
    - Connect your Phantom wallet
    - Start creating tokens!
@@ -226,7 +231,12 @@ def custom_token_logic(self):
    - Check Solana network status
    - Ensure valid token parameters
 
-4. **Artifacts Not Generated**
+4. **CONFIG is not defined Error**
+   - When running locally: Make sure you've created `config.js` from `config.example.js`
+   - When using GitHub Pages: This is expected as `config.js` is not included in the repository
+   - The app will show a warning and use default values for GitHub repository information
+
+5. **Artifacts Not Generated**
    - Check workflow completion status
    - Verify artifact retention settings
    - Look for errors in the workflow logs

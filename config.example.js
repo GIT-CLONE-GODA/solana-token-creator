@@ -1,6 +1,11 @@
 // Configuration Example for Solana Token Creator
 // Copy this file to config.js and update with your actual values
 // NEVER commit config.js to version control!
+//
+// IMPORTANT FOR GITHUB PAGES DEPLOYMENT:
+// When deploying to GitHub Pages, config.js will not be included (it's in .gitignore).
+// The application will fall back to default values in app.js.
+// For production use, create config.js locally or use environment variables.
 
 const CONFIG = {
     // GitHub Configuration
