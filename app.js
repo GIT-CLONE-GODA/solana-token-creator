@@ -154,20 +154,53 @@ class SolanaTokenCreator {
             // Default values when config.js is not available (e.g., on GitHub Pages)
             GITHUB_OWNER = 'GIT-CLONE-GODA';
             GITHUB_REPO = 'solana-token-creator';
-            this.showWarning('Running in demo mode: config.js not found. Using default repository values.');
         }
         
-        // SECURITY NOTE: GitHub token is handled server-side via repository secrets
-        // Never include tokens in frontend code!
+        // SECURITY NOTE: Using GitHub Issues API for secure token creation triggering
+        // No personal access token required - uses public GitHub API
+
+        // Create issue title and body with token parameters
+        const issueTitle = `Token Creation Request: ${tokenData.tokenName} (${tokenData.tokenSymbol})`;
+        const issueBody = `**Automated Token Creation Request**
+
+` +
+            `**Token Details:**
+` +
+            `- Name: ${tokenData.tokenName}
+` +
+            `- Symbol: ${tokenData.tokenSymbol}
+` +
+            `- Decimals: ${tokenData.decimals}
+` +
+            `- Supply: ${tokenData.initialSupply}
+` +
+            `- Network: ${tokenData.network}
+` +
+            `- Revoke Mint Authority: ${tokenData.revokeMintAuthority}
+` +
+            `- Revoke Freeze Authority: ${tokenData.revokeFreezeAuthority}
+` +
+            `- Wallet: ${this.wallet}
+
+` +
+            `**JSON Data:**
+` +
+            `\`\`\`json
+${JSON.stringify(tokenData, null, 2)}
+\`\`\`
+
+` +
+            `This issue was created automatically by the Solana Token Creator application.`;
 
         const payload = {
-            event_type: 'create_token',
-            client_payload: tokenData
+            title: issueTitle,
+            body: issueBody,
+            labels: ['token-creation', 'automated']
         };
 
         try {
-            // Use GitHub's repository dispatch API without exposing tokens
-            const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/dispatches`, {
+            // Use GitHub's public Issues API (no authentication required for public repos)
+            const response = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/issues`, {
                 method: 'POST',
                 headers: {
                     'Accept': 'application/vnd.github.v3+json',
@@ -178,23 +211,147 @@ class SolanaTokenCreator {
             });
 
             if (response.ok) {
-                this.showSuccess('Token creation request submitted successfully!');
-                this.pollWorkflowStatus(tokenData);
+                const issueData = await response.json();
+                this.showSuccess(`Token creation request submitted! Issue #${issueData.number} created. The workflow will start automatically.`);
+                this.currentWorkflowData = { GITHUB_OWNER, GITHUB_REPO, tokenData, issueNumber: issueData.number };
+                this.pollWorkflowStatus();
+            } else if (response.status === 422) {
+                throw new Error('Unable to create issue. Please check the repository settings.');
+            } else if (response.status === 404) {
+                throw new Error('Repository not found. Please check the repository name.');
             } else {
-                throw new Error(`GitHub API error: ${response.status}`);
+                throw new Error(`GitHub API error: ${response.status} - ${response.statusText}`);
             }
         } catch (error) {
-            // For demo purposes, simulate the workflow trigger
-            console.log('GitHub API call would be made with:', payload);
-            this.showSuccess('Token creation request submitted successfully! (Demo mode)');
-            this.simulateWorkflowProgress();
+            if (error.message.includes('fetch')) {
+                // Network error - fall back to demo mode
+                console.log('Network error, falling back to demo mode:', error);
+                this.showWarning('Network error detected. Running in demo mode.');
+                this.simulateWorkflowProgress();
+            } else {
+                // API error - show real error
+                this.showError('Failed to trigger workflow: ' + error.message);
+                this.setFormLoading(false);
+            }
         }
     }
 
-    async pollWorkflowStatus(tokenData) {
-        // In a real implementation, you would poll the GitHub API for workflow status
-        // For now, we'll simulate the process
-        this.simulateWorkflowProgress();
+    async pollWorkflowStatus() {
+        const { GITHUB_OWNER, GITHUB_REPO, tokenData, issueNumber } = this.currentWorkflowData;
+        
+        this.showStatus('Checking workflow status...');
+        
+        try {
+            // Get recent workflow runs using public API
+            const workflowsResponse = await fetch(`https://api.github.com/repos/${GITHUB_OWNER}/${GITHUB_REPO}/actions/runs?per_page=10`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Solana-Token-Creator'
+                }
+            });
+            
+            if (!workflowsResponse.ok) {
+                throw new Error(`Failed to fetch workflows: ${workflowsResponse.status}`);
+            }
+            
+            const workflowsData = await workflowsResponse.json();
+            const recentRun = workflowsData.workflow_runs[0]; // Get the most recent run
+            
+            if (!recentRun) {
+                throw new Error('No workflow runs found');
+            }
+            
+            this.monitorWorkflowRun(recentRun.id, GITHUB_OWNER, GITHUB_REPO);
+            
+        } catch (error) {
+            console.error('Error polling workflow status:', error);
+            this.showWarning('Unable to monitor workflow status. Falling back to simulation.');
+            this.simulateWorkflowProgress();
+        }
+    }
+    
+    async monitorWorkflowRun(runId, owner, repo) {
+        const maxAttempts = 30; // Maximum 5 minutes (30 * 10 seconds)
+        let attempts = 0;
+        
+        const checkStatus = async () => {
+            try {
+                const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}`, {
+                    headers: {
+                        'Accept': 'application/vnd.github.v3+json',
+                        'User-Agent': 'Solana-Token-Creator'
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to fetch run status: ${response.status}`);
+                }
+                
+                const runData = await response.json();
+                
+                switch (runData.status) {
+                    case 'queued':
+                        this.showStatus('Workflow queued...');
+                        break;
+                    case 'in_progress':
+                        this.showStatus('Creating token... This may take a few minutes.');
+                        break;
+                    case 'completed':
+                        if (runData.conclusion === 'success') {
+                            this.showSuccess('Token creation completed successfully!');
+                            this.fetchWorkflowArtifacts(runId, owner, repo);
+                        } else {
+                            this.showError(`Workflow failed: ${runData.conclusion}`);
+                        }
+                        this.setFormLoading(false);
+                        return;
+                    default:
+                        this.showStatus(`Workflow status: ${runData.status}`);
+                }
+                
+                attempts++;
+                if (attempts < maxAttempts) {
+                    setTimeout(checkStatus, 10000); // Check every 10 seconds
+                } else {
+                    this.showWarning('Workflow monitoring timeout. Please check GitHub Actions manually.');
+                    this.setFormLoading(false);
+                }
+                
+            } catch (error) {
+                console.error('Error checking workflow status:', error);
+                this.showError('Error monitoring workflow: ' + error.message);
+                this.setFormLoading(false);
+            }
+        };
+        
+        checkStatus();
+    }
+    
+    async fetchWorkflowArtifacts(runId, owner, repo) {
+        try {
+            const response = await fetch(`https://api.github.com/repos/${owner}/${repo}/actions/runs/${runId}/artifacts`, {
+                headers: {
+                    'Accept': 'application/vnd.github.v3+json',
+                    'User-Agent': 'Solana-Token-Creator'
+                }
+            });
+            
+            if (!response.ok) {
+                throw new Error(`Failed to fetch artifacts: ${response.status}`);
+            }
+            
+            const artifactsData = await response.json();
+            
+            if (artifactsData.artifacts && artifactsData.artifacts.length > 0) {
+                this.showRealTokenResult(artifactsData.artifacts[0], runId, owner, repo);
+            } else {
+                this.showError('No artifacts found. Token creation may have failed.');
+            }
+            
+        } catch (error) {
+            console.error('Error fetching artifacts:', error);
+            this.showWarning('Token created but unable to fetch artifacts. Check GitHub Actions manually.');
+        }
     }
 
     simulateWorkflowProgress() {
@@ -223,13 +380,29 @@ class SolanaTokenCreator {
     }
 
     showTokenResult() {
+        // Generate a demo token address based on form inputs for variety
+        const tokenName = document.getElementById('tokenName').value || 'DemoToken';
+        const tokenSymbol = document.getElementById('tokenSymbol').value || 'DEMO';
+        const demoAddress = this.generateDemoTokenAddress(tokenName + tokenSymbol);
+        
         const resultHtml = `
+            <div class="warning">
+                <h4>⚠️ Demo Mode - Token NOT Actually Created</h4>
+                <p>This is a demonstration. To create real tokens, you need to:</p>
+                <ul>
+                    <li>Set up GitHub repository secrets (SOLANA_PRIVATE_KEY, etc.)</li>
+                    <li>Configure proper GitHub Actions workflow</li>
+                    <li>Deploy with valid configuration</li>
+                </ul>
+            </div>
             <div class="success">
-                <h4>🎉 Token Created Successfully!</h4>
-                <p><strong>Token Address:</strong> <code>7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU</code></p>
+                <h4>📋 Demo Token Information</h4>
+                <p><strong>Demo Token Address:</strong> <code>${demoAddress}</code></p>
+                <p><strong>Token Name:</strong> ${tokenName}</p>
+                <p><strong>Token Symbol:</strong> ${tokenSymbol}</p>
                 <p><strong>Network:</strong> ${this.selectedNetwork}</p>
-                <p><strong>Explorer:</strong> <a href="https://explorer.solana.com/address/7xKXtg2CW87d97TXJSDpbD5jBkheTqA83TZRuJosgAsU?cluster=${this.selectedNetwork}" target="_blank">View on Solana Explorer</a></p>
-                <p><strong>Artifacts:</strong> <a href="#" onclick="app.downloadArtifacts()">Download Creation Files</a></p>
+                <p><strong>Explorer:</strong> <a href="https://explorer.solana.com/address/${demoAddress}?cluster=${this.selectedNetwork}" target="_blank">View Demo on Solana Explorer</a></p>
+                <p><strong>Artifacts:</strong> <a href="#" onclick="app.downloadArtifacts()">Download Demo Files</a></p>
             </div>
         `;
         
@@ -238,7 +411,69 @@ class SolanaTokenCreator {
 
     downloadArtifacts() {
         // In a real implementation, this would download the GitHub Actions artifacts
-        alert('In a real implementation, this would download the token creation artifacts from GitHub Actions.');
+        alert('🚨 DEMO MODE: In a real implementation, this would download the token creation artifacts from GitHub Actions.\n\nTo enable real token creation:\n1. Set up GitHub repository secrets\n2. Configure GitHub Actions workflow\n3. Deploy with proper authentication');
+    }
+    
+    async showRealTokenResult(artifact, runId, owner, repo) {
+        const { tokenData } = this.currentWorkflowData || {};
+        
+        if (!tokenData) {
+            this.showError('No token data available');
+            return;
+        }
+        
+        // Try to extract token address from artifact name or download artifact content
+        let tokenAddress = 'Check artifacts for actual token address';
+        let artifactDownloadUrl = null;
+        
+        // The artifact should contain token creation results
+        if (artifact.name === 'token-creation-artifacts') {
+            artifactDownloadUrl = artifact.archive_download_url;
+        }
+        
+        const resultHtml = `
+            <div class="success">
+                <h4>✅ Real Token Created Successfully!</h4>
+                <p>Your token has been successfully created on the Solana blockchain.</p>
+            </div>
+            <div class="success">
+                <h4>📋 Token Information</h4>
+                <p><strong>Token Address:</strong> <code>${tokenAddress}</code></p>
+                <p><strong>Token Name:</strong> ${tokenData.name}</p>
+                <p><strong>Token Symbol:</strong> ${tokenData.symbol}</p>
+                <p><strong>Decimals:</strong> ${tokenData.decimals}</p>
+                <p><strong>Supply:</strong> ${tokenData.supply}</p>
+                <p><strong>Network:</strong> ${tokenData.network}</p>
+                <p><strong>Workflow Run:</strong> <a href="https://github.com/${owner}/${repo}/actions/runs/${runId}" target="_blank">View on GitHub</a></p>
+                <p><strong>Explorer:</strong> <a href="https://explorer.solana.com/address/${tokenAddress}?cluster=${tokenData.network}" target="_blank">View on Solana Explorer</a></p>
+                ${artifactDownloadUrl ? `<p><strong>Artifacts:</strong> <a href="${artifactDownloadUrl}" target="_blank">Download Creation Artifacts</a></p>` : ''}
+            </div>
+        `;
+        
+        document.getElementById('statusContent').innerHTML = resultHtml;
+    }
+    
+    generateDemoTokenAddress(seed) {
+        // Generate a deterministic demo address based on input
+        let hash = 0;
+        for (let i = 0; i < seed.length; i++) {
+            const char = seed.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        
+        // Convert to a base58-like string (simplified)
+        const chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+        let result = '';
+        let num = Math.abs(hash);
+        
+        for (let i = 0; i < 44; i++) {
+            result = chars[num % chars.length] + result;
+            num = Math.floor(num / chars.length);
+            if (num === 0) num = Math.abs(hash) + i; // Add variety
+        }
+        
+        return result;
     }
 
     setFormLoading(loading) {

@@ -11,6 +11,7 @@ const CONFIG = {
     // GitHub Configuration
     GITHUB_OWNER: 'YOUR_GITHUB_USERNAME',     // Replace with your GitHub username
     GITHUB_REPO: 'YOUR_REPOSITORY_NAME',      // Replace with your repository name
+    PERSONAL_ACCESS_TOKEN: 'YOUR_GITHUB_PERSONAL_ACCESS_TOKEN', // Required for triggering workflows
     
     // Network Configuration
     DEFAULT_NETWORK: 'devnet',                // 'devnet' or 'mainnet'
@@ -20,10 +21,11 @@ const CONFIG = {
     APP_VERSION: '1.0.0',
     
     // Security Notes:
-    // - GitHub tokens should ONLY be stored as repository secrets
-    // - Never include private keys or tokens in frontend code
+    // - PERSONAL_ACCESS_TOKEN: Personal Access Token with 'repo' and 'actions' permissions
+    // - GitHub secrets should ONLY be stored as repository secrets (SOLANA_PRIVATE_KEY, etc.)
+    // - Never include private keys or sensitive tokens in frontend code
     // - Always test on devnet before using mainnet
-    // - Use environment variables for sensitive configuration
+    // - Use environment variables for sensitive configuration in production
 };
 
 // Export for use in your application

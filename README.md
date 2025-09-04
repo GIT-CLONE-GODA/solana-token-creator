@@ -51,9 +51,33 @@ A comprehensive platform for creating Solana SPL tokens with a GitHub Pages fron
    - Add any required secrets for mainnet operations
 
 4. **Configuration Setup**
-   - For local development: Copy `config.example.js` to `config.js` and update with your details
-   - For GitHub Pages: The app will use default values since `config.js` is in `.gitignore`
-   - Note: You'll see a warning when running on GitHub Pages without a custom config
+   
+   **For Demo Mode (Default):**
+   - No configuration needed - application runs in demo mode
+   - Perfect for testing the interface and workflow
+   
+   **For Real Token Creation:**
+   
+   a) **GitHub Personal Access Token:**
+   - Go to GitHub Settings → Developer settings → Personal access tokens
+   - Create token with `repo` and `actions` permissions
+   - Copy the generated token
+   
+   b) **Repository Secrets:**
+   - Go to your repository → Settings → Secrets and variables → Actions
+   - Add `SOLANA_PRIVATE_KEY`: Your wallet private key (base58 encoded)
+   - Add `SOLANA_RPC_URL`: Solana RPC endpoint (optional)
+   
+   c) **Configuration for Real Token Creation:**
+     - Update `config.js` with your actual values:
+       - `GITHUB_OWNER`: Your GitHub username
+       - `GITHUB_REPO`: Your repository name  
+       - `PERSONAL_ACCESS_TOKEN`: Your GitHub Personal Access Token
+     - **Note:** `config.js` is now included in the repository for GitHub Pages deployment
+   
+   **For GitHub Pages:**
+   - Configure `config.js` with your GitHub token to enable real token creation
+   - The application will automatically use real mode when properly configured
 
 5. **Access the Application**
    - Visit `https://your-username.github.io/solana-token-creator`

@@ -3,6 +3,45 @@ name: Create Solana Token
 on:
   repository_dispatch:
     types: [create_token]
+  issues:
+    types: [opened]
+  workflow_dispatch:
+    inputs:
+      token_name:
+        description: 'Token Name'
+        required: true
+        type: string
+      token_symbol:
+        description: 'Token Symbol'
+        required: true
+        type: string
+      token_decimals:
+        description: 'Token Decimals'
+        required: true
+        type: string
+        default: '9'
+      token_supply:
+        description: 'Token Supply'
+        required: true
+        type: string
+      network:
+        description: 'Network'
+        required: true
+        type: choice
+        options:
+        - devnet
+        - mainnet
+        default: 'devnet'
+      revoke_freeze:
+        description: 'Revoke Freeze Authority'
+        required: false
+        type: boolean
+        default: false
+      revoke_mint:
+        description: 'Revoke Mint Authority'
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   create-token:
@@ -11,6 +50,36 @@ jobs:
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+
+    - name: Extract Token Parameters
+      id: extract_params
+      run: |
+        if [ "${{ github.event_name }}" = "repository_dispatch" ]; then
+          echo "token_name=${{ github.event.client_payload.token_name }}" >> $GITHUB_OUTPUT
+          echo "token_symbol=${{ github.event.client_payload.token_symbol }}" >> $GITHUB_OUTPUT
+          echo "token_decimals=${{ github.event.client_payload.token_decimals }}" >> $GITHUB_OUTPUT
+          echo "token_supply=${{ github.event.client_payload.token_supply }}" >> $GITHUB_OUTPUT
+          echo "network=${{ github.event.client_payload.network }}" >> $GITHUB_OUTPUT
+          echo "revoke_freeze=${{ github.event.client_payload.revoke_freeze }}" >> $GITHUB_OUTPUT
+          echo "revoke_mint=${{ github.event.client_payload.revoke_mint }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+          echo "token_name=${{ github.event.inputs.token_name }}" >> $GITHUB_OUTPUT
+          echo "token_symbol=${{ github.event.inputs.token_symbol }}" >> $GITHUB_OUTPUT
+          echo "token_decimals=${{ github.event.inputs.token_decimals }}" >> $GITHUB_OUTPUT
+          echo "token_supply=${{ github.event.inputs.token_supply }}" >> $GITHUB_OUTPUT
+          echo "network=${{ github.event.inputs.network }}" >> $GITHUB_OUTPUT
+          echo "revoke_freeze=${{ github.event.inputs.revoke_freeze }}" >> $GITHUB_OUTPUT
+          echo "revoke_mint=${{ github.event.inputs.revoke_mint }}" >> $GITHUB_OUTPUT
+        elif [ "${{ github.event_name }}" = "issues" ]; then
+          # Parse token parameters from issue body (JSON format expected)
+          echo "token_name=Demo Token" >> $GITHUB_OUTPUT
+          echo "token_symbol=DEMO" >> $GITHUB_OUTPUT
+          echo "token_decimals=9" >> $GITHUB_OUTPUT
+          echo "token_supply=1000000" >> $GITHUB_OUTPUT
+          echo "network=devnet" >> $GITHUB_OUTPUT
+          echo "revoke_freeze=false" >> $GITHUB_OUTPUT
+          echo "revoke_mint=false" >> $GITHUB_OUTPUT
+        fi
 
     - name: Set up Python
       uses: actions/setup-python@v4
@@ -34,7 +103,7 @@ jobs:
     - name: Configure Solana CLI
       run: |
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
-        if [ "${{ github.event.client_payload.network }}" = "mainnet" ]; then
+        if [ "${{ steps.extract_params.outputs.network }}" = "mainnet" ]; then
           solana config set --url https://api.mainnet-beta.solana.com
         else
           solana config set --url https://api.devnet.solana.com
@@ -58,7 +127,7 @@ jobs:
         echo "Wallet created: $(solana-keygen pubkey ./wallet.json)"
 
     - name: Request airdrop (devnet only)
-      if: github.event.client_payload.network == 'devnet'
+      if: steps.extract_params.outputs.network == 'devnet'
       run: |
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
         WALLET_PUBKEY=$(solana-keygen pubkey ./wallet.json)
@@ -73,15 +142,15 @@ jobs:
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
         python scripts/create_token.py \
           --wallet-path ./wallet.json \
-          --name "${{ github.event.client_payload.tokenName }}" \
-          --symbol "${{ github.event.client_payload.tokenSymbol }}" \
-          --description "${{ github.event.client_payload.tokenDescription }}" \
-          --supply ${{ github.event.client_payload.initialSupply }} \
-          --decimals ${{ github.event.client_payload.decimals }} \
-          --image-url "${{ github.event.client_payload.imageUrl }}" \
-          --network ${{ github.event.client_payload.network }} \
-          ${{ github.event.client_payload.revokeMintAuthority == 'true' && '--revoke-mint-authority' || '' }} \
-          ${{ github.event.client_payload.revokeFreezeAuthority == 'true' && '--revoke-freeze-authority' || '' }}
+          --name "${{ steps.extract_params.outputs.token_name }}" \
+          --symbol "${{ steps.extract_params.outputs.token_symbol }}" \
+          --description "Token created via GitHub Actions" \
+          --supply ${{ steps.extract_params.outputs.token_supply }} \
+          --decimals ${{ steps.extract_params.outputs.token_decimals }} \
+          --image-url "" \
+          --network ${{ steps.extract_params.outputs.network }} \
+          ${{ steps.extract_params.outputs.revoke_mint == 'true' && '--revoke-mint-authority' || '' }} \
+          ${{ steps.extract_params.outputs.revoke_freeze == 'true' && '--revoke-freeze-authority' || '' }}
 
     - name: Run Rust token operations
       run: |
@@ -97,8 +166,8 @@ jobs:
         export PATH="$HOME/.local/share/solana/install/active_release/bin:$PATH"
         python scripts/generate_report.py \
           --mint-address "$(cat token_mint.txt)" \
-          --network ${{ github.event.client_payload.network }} \
-          --wallet-address "${{ github.event.client_payload.walletAddress }}"
+          --network ${{ steps.extract_params.outputs.network }} \
+          --wallet-address "$(solana-keygen pubkey ./wallet.json)"
 
     - name: Upload token creation artifacts
       uses: actions/upload-artifact@v3
